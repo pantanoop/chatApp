@@ -1,16 +1,16 @@
-import React from 'react';
-import './App.css';
+import React from "react";
+import "./App.css";
 import { Routes, Route } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Login from "./Login/Login";
-import  Register from "./Register/Register";
-import Dashboard from "./Dashboard/Dashboard"
-
+import Register from "./Register/Register";
+import Dashboard from "./Dashboard/Dashboard";
+import ProtectedRoute from "./Dashboard/ProtectedRoute";
 
 function App() {
   return (
     <div className="App">
-    <Routes>
+      <Routes>
         <Route
           path="/"
           element={
@@ -37,7 +37,7 @@ function App() {
             </Box>
           }
         />
-        <Route
+        {/* <Route
           path="/dashboard"
           element={
             <Box
@@ -49,8 +49,8 @@ function App() {
               <Dashboard />
             </Box>
           }
-        />
-        {/* <Route
+        /> */}
+        <Route
           path="/dashboard"
           element={
             <Box
@@ -64,9 +64,8 @@ function App() {
               </ProtectedRoute>
             </Box>
           }
-        /> */}
-
-        </Routes>
+        />
+      </Routes>
     </div>
   );
 }

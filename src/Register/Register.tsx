@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { addUser, addCurrentUser } from "../redux/authenticateSlice";
-import type { User } from "../redux/authenticateSlice";
+import { useDispatch } from "react-redux";
+import { addCurrentUser } from "../redux/authenticateSlice";
 
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -10,11 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { auth, db } from "../config/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import InputAdornment from "@mui/material/InputAdornment";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import IconButton from "@mui/material/IconButton";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 import {
   TextField,
@@ -25,33 +20,43 @@ import {
   Card,
   Snackbar,
   Alert,
+  IconButton,
+  InputAdornment,
 } from "@mui/material";
-import { RootState } from "../redux/store";
 
-const RegistrationSchema = z.object({
-  email: z.email("Must be a valid email"),
-  password: z
-    .string()
-    .regex(/^\S*$/, "Field cannot contain spaces.")
-    .min(1, "Password must be at least 1 characters long"),
-  confirmpassword: z.string().min(1, "Password is required"),
-});
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+
+const DEFAULT_AVATAR =
+  "https://ui-avatars.com/api/?background=random&color=fff&name=";
+
+const RegistrationSchema = z
+  .object({
+    username: z
+      .string()
+      .min(3, "Username must be at least 3 characters")
+      .regex(/^\S+$/, "Username cannot contain spaces"),
+    email: z.string().email("Must be a valid email"),
+    password: z
+      .string()
+      .min(6, "Password must be at least 6 characters")
+      .regex(/^\S*$/, "Password cannot contain spaces"),
+    confirmpassword: z.string().min(1, "Confirm password is required"),
+  })
+  .refine((data) => data.password === data.confirmpassword, {
+    path: ["confirmpassword"],
+    message: "Passwords do not match",
+  });
 
 type RegistrationSchemaType = z.infer<typeof RegistrationSchema>;
 
 function Register() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const users = useSelector((state: RootState) => state.authenticator.users);
-  console.log({ users });
+
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const handleMouseDownPassword = () => setShowPassword(!showPassword);
-
-  const handleClickShowPassword = () => setShowPassword(!showPassword);
-  const handleClickShowConfirmPassword = () => setShowPassword(!showConfirmPassword);
-    const handleShowDownPassword = () => setShowConfirmPassword(!showConfirmPassword);
 
   const {
     control,
@@ -60,50 +65,58 @@ function Register() {
     formState: { errors },
   } = useForm<RegistrationSchemaType>({
     resolver: zodResolver(RegistrationSchema),
+    defaultValues: {
+      username: "",
+      email: "",
+      password: "",
+      confirmpassword: "",
+    },
   });
 
-  console.log("hhe", { errors });
+  const handleRegister = async (data: RegistrationSchemaType) => {
+    try {
+      const res = await createUserWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password
+      );
 
-  const handleRegister = async (data: User) => {
-    const existingUser = users?.some((u: User) => u.email === data.email);
+      const user = res.user;
 
-    if (existingUser) {
-      setError("email", {
-        type: "manual",
-        message: "Email already registered",
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: data.email,
+        username: data.username,
+        photoURL: `${DEFAULT_AVATAR}${data.username}`,
+        provider: "password",
+        createdAt: serverTimestamp(),
       });
-      return;
-    }
-    if (data.password === data.confirmpassword) {
-      try {
-        await createUserWithEmailAndPassword(auth, data.email, data.password);
-        const docRef = await addDoc(collection(db, "users"), {
-          email: data.email,
-          password: data.password,
-        });
-        console.log("Document written with ID: ", docRef.id);
-      } catch (error) {
-        console.log(error);
-      }
+
       dispatch(
         addCurrentUser({
+          uid: user.uid,
           email: data.email,
-          password: data.password,
+          username: data.username,
+          photoURL: `${DEFAULT_AVATAR}${data.username}`,
         })
       );
-    } else {
-      setError("confirmpassword", {
-        type: "manual",
-        message: "Confirm password is different from password you entered",
-      });
-      return;
+
+      setOpenSnackbar(true);
+      setTimeout(() => navigate("/dashboard"), 1200);
+    } catch (error: any) {
+      console.log({ error });
+      if (error.code === "auth/email-already-in-use") {
+        setError("email", {
+          type: "manual",
+          message: "Email already registered",
+        });
+      } else {
+        setError("email", {
+          type: "manual",
+          message: "Registration failed",
+        });
+      }
     }
-
-    setOpenSnackbar(true);
-
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 1200);
   };
 
   return (
@@ -116,12 +129,22 @@ function Register() {
         <Box
           component="form"
           onSubmit={handleSubmit(handleRegister)}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
         >
+          <Controller
+            name="username"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Username"
+                error={!!errors.username}
+                helperText={errors.username?.message}
+                fullWidth
+              />
+            )}
+          />
+
           <Controller
             name="email"
             control={control}
@@ -129,59 +152,30 @@ function Register() {
               <TextField
                 {...field}
                 label="Email"
-                fullWidth
                 error={!!errors.email}
                 helperText={errors.email?.message}
+                fullWidth
               />
             )}
           />
 
-          {/* <Controller
-            name="password"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                type="password"
-                label="Password"
-                fullWidth
-                error={!!errors.password}
-                helperText={errors.password?.message}
-              />
-            )}
-          /> */}
-          {/* <Controller
-            name="confirmpassword"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                type="password"
-                label="Confirm Password"
-                fullWidth
-                error={!!errors.confirmpassword}
-                helperText={errors.confirmpassword?.message}
-              />
-            )}
-          /> */}
           <Controller
             name="password"
             control={control}
             render={({ field }) => (
               <TextField
                 {...field}
-                label="password"
+                label="Password"
                 type={showPassword ? "text" : "password"}
-                fullWidth
                 error={!!errors.password}
                 helperText={errors.password?.message}
+                fullWidth
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={handleClickShowPassword}
-                        onMouseDown={handleMouseDownPassword}
+                        onClick={() => setShowPassword((s) => !s)}
+                        onMouseDown={(e) => e.preventDefault()}
                       >
                         {showPassword ? <Visibility /> : <VisibilityOff />}
                       </IconButton>
@@ -198,20 +192,23 @@ function Register() {
             render={({ field }) => (
               <TextField
                 {...field}
-                label="confirm password"
+                label="Confirm Password"
                 type={showConfirmPassword ? "text" : "password"}
-                fullWidth
                 error={!!errors.confirmpassword}
-                helperText={errors?.confirmpassword?.message}
+                helperText={errors.confirmpassword?.message}
+                fullWidth
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={handleClickShowConfirmPassword}
-                        onMouseDown={handleShowDownPassword}
+                        onClick={() => setShowConfirmPassword((s) => !s)}
+                        onMouseDown={(e) => e.preventDefault()}
                       >
-                        {showConfirmPassword ? <Visibility /> : <VisibilityOff />}
+                        {showConfirmPassword ? (
+                          <Visibility />
+                        ) : (
+                          <VisibilityOff />
+                        )}
                       </IconButton>
                     </InputAdornment>
                   ),
@@ -220,15 +217,14 @@ function Register() {
             )}
           />
 
-
           <Button variant="contained" type="submit" fullWidth>
             Register
           </Button>
         </Box>
 
-        <Typography variant="body2" align="center" mt={2}>
-          Existing User?{" "}
-          <Link component={RouterLink} to="/" underline="hover">
+        <Typography align="center" mt={2}>
+          Existing user?{" "}
+          <Link component={RouterLink} to="/">
             Login
           </Link>
         </Typography>
@@ -238,15 +234,8 @@ function Register() {
         open={openSnackbar}
         autoHideDuration={2000}
         onClose={() => setOpenSnackbar(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert
-          onClose={() => setOpenSnackbar(false)}
-          severity="success"
-          sx={{ width: "100%" }}
-        >
-          User successfully registered 🎉
-        </Alert>
+        <Alert severity="success">User successfully registered 🎉</Alert>
       </Snackbar>
     </>
   );

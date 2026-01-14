@@ -1,25 +1,15 @@
-import  { useState ,useEffect} from "react";
+import { useState } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 import { addCurrentUser } from "../redux/authenticateSlice";
-import type { User } from "../redux/authenticateSlice"
-import { RootState } from "../redux/store";
-import { auth ,googleProvider,db} from '../config/firebase';
-import { signInWithEmailAndPassword ,signInWithPopup} from 'firebase/auth';
-import { FcGoogle } from 'react-icons/fc'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
+import { auth, googleProvider, db } from "../config/firebase";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-
-import InputAdornment from "@mui/material/InputAdornment";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import IconButton from "@mui/material/IconButton";
-
-import {  getDocs, DocumentData } from 'firebase/firestore';
-
 
 import {
   TextField,
@@ -28,44 +18,37 @@ import {
   Typography,
   Link,
   Card,
+  IconButton,
+  InputAdornment,
   Snackbar,
   Alert,
 } from "@mui/material";
 
-interface UserData {
-  email: string;
-}
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 const LoginSchema = z.object({
-  email: z.email("must be a valid email"),
-  password: z
-  .string()
-  .min(1, "Password must be at least 1 characters long")
-  .regex(/^\S*$/, "Password cannot contain spaces"),
+  email: z.email("Invalid email"),
+  password: z.string().min(1, "Password is required"),
 });
+
+type LoginFormData = z.infer<typeof LoginSchema>;
+
+const DEFAULT_AVATAR =
+  "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
 
 function Login() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
-  // const users = useSelector((state:RootState) => state.authenticator.users);
+  const [showPassword, setShowPassword] = useState(false);
   const [openSnackbar, setOpenSnackbar] = useState(false);
-      const [showPassword, setShowPassword] = useState(false);
-  const handleClickShowPassword = () => setShowPassword(!showPassword);
-  const handleMouseDownPassword = () => setShowPassword(!showPassword);
-
-
-    const [users, setUsers] = useState<UserData[]>([]);
-    const [loading, setLoading] = useState(true);
- 
-  console.log("users:", users);
 
   const {
     control,
     handleSubmit,
     setError,
     formState: { errors },
-  } = useForm({
+  } = useForm<LoginFormData>({
     resolver: zodResolver(LoginSchema),
     defaultValues: {
       email: "",
@@ -73,142 +56,161 @@ function Login() {
     },
   });
 
+  const handleLogin = async (data: LoginFormData) => {
+    console.log("Login attempt:", data);
 
-useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        const usersCollectionRef = collection(db, 'users');
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        const usersList = usersSnapshot.docs.map(
-          (doc) => doc.data() as UserData
-        );
-        setUsers(usersList);
-      } catch (err) {
-        console.error('Error fetching users:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers().catch(console.error);
-  }, []);
-
-
-  const signInWithGoogle = async () => {
-  try {
-    const existingUser = users.find((u)=>u.email)
-    if(existingUser){
-    const res =await signInWithPopup(auth, googleProvider);
-      const docRef = await addDoc(collection(db, 'users'), {
-             email:res?.user.email ,
-             password:""        
-          });
-      console.log('Document written with ID: ', docRef.id);
-     console.log("auth",res?.user.email) ;}
-     setOpenSnackbar(true);
-         setTimeout(() => {
-      navigate("/dashboard");
-    }, 1200);
-  } catch (error) {
-    console.error('Error signing in with Google', error);
-  }
-};
-
-
-
-  const handleLogin = async(data:User) => {
+    if (!data.email || !data.password) {
+      console.warn("Email or password missing");
+      setError("email", { type: "manual", message: "Email is required" });
+      setError("password", { type: "manual", message: "Password is required" });
+      return;
+    }
 
     try {
-      const res = await signInWithEmailAndPassword(auth, data.email, data.password);
-      console.log({res});
-      setOpenSnackbar(true);
-        setTimeout(() => {
-      navigate("/dashboard");
-    }, 1200);
-    } catch (error) {
-      console.error(error);
-    }
-    // if (!user) {
-    //   setError("email", {
-    //     type: "manual",
-    //     message: "Invalid email or password",
-    //   });
-    //   setError("password", {
-    //     type: "manual",
-    //     message: "Invalid email or password",
-    //   });
-    //   return;
-    // }
+      console.log("Calling Firebase Auth with:", {
+        email: data.email,
+        password: data.password,
+      });
 
-     dispatch(addCurrentUser({
-          email: data.email,
-          password: data.password,
-        }))
+      const res = await signInWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password
+      );
+
+      console.log("Firebase Auth response:", res);
+      const user = res.user;
+
+      if (!user.email) {
+        console.error("User email missing in Auth response", user);
+        setError("email", { type: "manual", message: "User email not found" });
+        return;
+      }
+
+      console.log("Fetching Firestore profile for UID:", user.uid);
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+      console.log("Firestore snapshot:", snap);
+
+      if (!snap.exists()) {
+        setError("email", {
+          type: "manual",
+          message: "User profile not found",
+        });
+        return;
+      }
+
+      const userData = snap.data();
+      console.log("User data from Firestore:", userData);
+
+      dispatch(
+        addCurrentUser({
+          uid: user.uid,
+          email: user.email,
+          username: userData.username,
+          photoURL: userData.photoURL,
+        })
+      );
+
+      setOpenSnackbar(true);
+      setTimeout(() => navigate("/dashboard"), 1000);
+    } catch (error: any) {
+      console.error("Firebase login error:", error);
+
+      if (error.code === "auth/user-not-found") {
+        setError("email", { type: "manual", message: "Email not registered" });
+      } else if (error.code === "auth/wrong-password") {
+        setError("password", { type: "manual", message: "Incorrect password" });
+      } else if (error.code === "auth/invalid-email") {
+        setError("email", { type: "manual", message: "Invalid email format" });
+      } else {
+        setError("email", { type: "manual", message: "Login failed" });
+      }
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      const res = await signInWithPopup(auth, googleProvider);
+      const user = res.user;
+
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          username: user.displayName || "User",
+          photoURL: user.photoURL || DEFAULT_AVATAR,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      const userData = snap.exists()
+        ? snap.data()
+        : {
+            username: user.displayName || "User",
+            photoURL: user.photoURL || DEFAULT_AVATAR,
+          };
+
+      dispatch(
+        addCurrentUser({
+          uid: user.uid,
+          email: user.email!,
+          username: userData.username,
+          photoURL: userData.photoURL,
+        })
+      );
+
+      setOpenSnackbar(true);
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1000);
+    } catch (error) {
+      console.error("Google sign-in failed", error);
+    }
   };
 
   return (
-    <Card variant="outlined" sx={{ p: 4, minWidth: 350 }}>
-      <Typography variant="h5" textAlign="center" mb={2}>
-        Login
-      </Typography>
+    <>
+      <Card variant="outlined" sx={{ p: 4, minWidth: 350 }}>
+        <Typography variant="h5" textAlign="center" mb={2}>
+          Login
+        </Typography>
 
-      <Box
-        component="form"
-        onSubmit={handleSubmit(handleLogin)}
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
-        }}
-      >
-        <Controller
-          name="email"
-          control={control}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Email"
-              fullWidth
-              error={!!errors?.email}
-              helperText={errors?.email?.message}
-            />
-          )}
-        />
+        <Box
+          component="form"
+          onSubmit={handleSubmit(handleLogin)}
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+        >
+          <Controller
+            name="email"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Email"
+                error={!!errors.email}
+                helperText={errors.email?.message}
+              />
+            )}
+          />
 
-        {/* <Controller
-          name="password"
-          control={control}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="password"
-              type="password"
-              fullWidth
-              error={!!errors?.password}
-              helperText={errors?.password?.message}
-            />
-          )}
-        /> */}
-        <Controller
+          <Controller
             name="password"
             control={control}
             render={({ field }) => (
               <TextField
                 {...field}
-                label="password"
+                label="Password"
                 type={showPassword ? "text" : "password"}
-                fullWidth
                 error={!!errors.password}
                 helperText={errors.password?.message}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={handleClickShowPassword}
-                        onMouseDown={handleMouseDownPassword}
-                      >
+                      <IconButton onClick={() => setShowPassword((s) => !s)}>
                         {showPassword ? <Visibility /> : <VisibilityOff />}
                       </IconButton>
                     </InputAdornment>
@@ -218,45 +220,30 @@ useEffect(() => {
             )}
           />
 
-        <Button type="submit" variant="contained" fullWidth>
-          Login
-        </Button>
-        {/* <FcGoogle size={40} style={{ margin: '10px' }} /> */}
+          <Button type="submit" variant="contained" fullWidth>
+            Login
+          </Button>
 
-        <Button onClick={signInWithGoogle} variant="contained" fullWidth>
-          Sign in with Google
-        </Button>
-        
+          <Button onClick={signInWithGoogle} variant="outlined" fullWidth>
+            Sign in with Google
+          </Button>
 
-        <Typography variant="body2" align="center">
-          New User?{" "}
-          <Link component={RouterLink} to="/register" underline="hover">
-            Register
-          </Link>
-        </Typography>
-        <Typography variant="body2" align="center">
-          skip for now?{" "}
-          <Link component={RouterLink} to="/dashboard" underline="hover">
-            Explore Site
-          </Link>
-        </Typography>
-
-        <Snackbar
-          open={openSnackbar}
-          autoHideDuration={2000}
-          onClose={() => setOpenSnackbar(false)}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        >
-          <Alert
-            onClose={() => setOpenSnackbar(false)}
-            severity="success"
-            sx={{ width: "100%" }}
-          >
-            Successfully Login 🎉
-          </Alert>
-        </Snackbar>
-      </Box>
-    </Card>
+          <Typography align="center">
+            New user?{" "}
+            <Link component={RouterLink} to="/register">
+              Register
+            </Link>
+          </Typography>
+        </Box>
+      </Card>
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={2000}
+        onClose={() => setOpenSnackbar(false)}
+      >
+        <Alert severity="success">User successfully registered 🎉</Alert>
+      </Snackbar>
+    </>
   );
 }
 

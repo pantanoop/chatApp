@@ -1,111 +1,52 @@
-import { useSelector } from 'react-redux';
-import { RootState } from '../redux/store';
-import { auth, db } from '../config/firebase';
-import { signOut } from 'firebase/auth';
-import { collection, getDocs, DocumentData } from 'firebase/firestore'; 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Snackbar,
-  Alert,
-    Button,
-} from "@mui/material";
-
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "../redux/store";
+import Sidebar from "./Sidebar/Sidebar";
+import ChatPanel from "./ChatPanel/ChatPanel";
+import UserList from "./UserList/UserList";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../config/firebase";
+import "./Dashboard.css";
 interface UserData {
   email: string;
+  username?: string;
+  photoURL?: string;
 }
 
 function Dashboard() {
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
- const [openSnackbar, setOpenSnackbar] = useState(false);
-  const navigate = useNavigate();
-
   const currentUser = useSelector(
     (state: RootState) => state.authenticator.currentUser
   );
 
-  console.log({ currentUser });
-
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-       setOpenSnackbar(true);
-        setTimeout(() => {
-      navigate("/");
-    }, 1200);
-      alert('User signed out successfully');
-    } catch (error) {
-      console.error('Error signing out:', error);
-      setError('Failed to sign out.');
-    }
-  };
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const usersCollectionRef = collection(db, 'users');
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        const usersList = usersSnapshot.docs.map(
-          (doc) => doc.data() as UserData
-        );
-        setUsers(usersList);
-      } catch (err) {
-        console.error('Error fetching users:', err);
-        setError('Failed to load users.');
-      } finally {
-        setLoading(false);
-      }
+      if (!currentUser) return;
+
+      const usersCollectionRef = collection(db, "users");
+      const usersSnapshot = await getDocs(usersCollectionRef);
+      const usersList = usersSnapshot.docs
+        .map((doc) => doc.data() as UserData)
+        .filter((u) => u.email !== currentUser.email);
+      setUsers(usersList);
     };
 
-    fetchUsers().catch(console.error);
-  }, []);
+    fetchUsers();
+  }, [currentUser]);
 
   return (
-    <div className='.main-container'>
-      <header>Welcome to the app!
-        <Button onClick={handleSignOut} variant="contained" fullWidth>
-          Log Out
-        </Button>
-      </header>
-      <div className='chat-section'>
-        <div className='user-section'>
-            <div></div>
-            <div className='users'>
+    <div className="dashboard-container">
+      <Sidebar currentUserPhoto={currentUser?.photoURL} />
 
-            </div>
-        </div>
-      </div>
+      <UserList
+        users={users}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+      />
 
-
-      <h3>👤Registered Users:</h3>
-      {loading && <p>Loading users...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {!loading && users.length === 0 && <p>No users found.</p>}
-
-      <ul>
-        {users.map((user, index) => (
-          <li key={index}>{user.email}</li>
-        ))}
-      </ul>
-
-      <Snackbar
-                open={openSnackbar}
-                autoHideDuration={2000}
-                onClose={() => setOpenSnackbar(false)}
-                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-              >
-                <Alert
-                  onClose={() => setOpenSnackbar(false)}
-                  severity="success"
-                  sx={{ width: "100%" }}
-                >
-                  Successfully Logged Out 🎉
-                </Alert>
-              </Snackbar>
+      <ChatPanel selectedUser={selectedUser} />
     </div>
   );
 }

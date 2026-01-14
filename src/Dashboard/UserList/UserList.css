@@ -1,0 +1,94 @@
+.users-panel {
+  width: 280px;
+  min-width: 280px;
+  background-color: #e9e7e7;
+  border-right: 1px solid #ece0e0;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.users-panel .MuiInputBase-root {
+  background-color: #f0f2f5;
+  border-radius: 20px;
+  margin-bottom: 10px;
+  padding-left: 8px;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.user-card:hover {
+  background-color: #f5f7fa;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.user-card.selected {
+  background-color: #067df4;
+  color: white;
+}
+
+.user-card .MuiAvatar-root {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.user-info .username {
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.user-info .last-message {
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.users-panel .top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  margin-bottom: 30px;
+}
+
+.users-panel .top-header .chats-label {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.users-panel .top-header .icon-group {
+  display: flex;
+  gap: 10px;
+}
+
+.users-panel .top-header .icon-group svg {
+  cursor: pointer;
+  color: #888;
+  transition: color 0.2s ease;
+}
+
+.users-panel .top-header .icon-group svg:hover {
+  color: #1976d2;
+}
