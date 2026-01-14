@@ -9,7 +9,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { auth, db } from "../config/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 
 import {
   TextField,
@@ -75,6 +83,17 @@ function Register() {
 
   const handleRegister = async (data: RegistrationSchemaType) => {
     try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("username", "==", data.username));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        setError("username", {
+          type: "manual",
+          message: "Username already in use. Please choose a different one.",
+        });
+        return;
+      }
+
       const res = await createUserWithEmailAndPassword(
         auth,
         data.email,
@@ -104,7 +123,6 @@ function Register() {
       setOpenSnackbar(true);
       setTimeout(() => navigate("/dashboard"), 1200);
     } catch (error: any) {
-      console.log({ error });
       if (error.code === "auth/email-already-in-use") {
         setError("email", {
           type: "manual",
