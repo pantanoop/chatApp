@@ -1,15 +1,19 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Avatar, InputAdornment, TextField } from "@mui/material";
 import MessageOutlinedIcon from "@mui/icons-material/MessageOutlined";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
 import "./UserList.css";
+import { spawn } from "child_process";
 
 interface UserData {
   email: string;
   username?: string;
   photoURL?: string;
   lastMessage?: string;
+  uid: string;
+  createdAt: string;
+  isOnline?: boolean;
 }
 
 interface UsersPanelProps {
@@ -23,6 +27,8 @@ const UserList = ({
   selectedUser,
   setSelectedUser,
 }: UsersPanelProps) => {
+  console.log("users from user list users", users);
+
   return (
     <div className="users-panel">
       <div className="top-header">
@@ -57,9 +63,7 @@ const UserList = ({
           <Avatar src={user.photoURL} />
           <div className="user-info">
             <span className="username">{user.username || user.email}</span>
-            {user.lastMessage && (
-              <span className="last-message">{user.lastMessage}</span>
-            )}
+            {user.isOnline ? <span>online</span> : <span>Offline</span>}
           </div>
         </div>
       ))}

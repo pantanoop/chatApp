@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { addCurrentUser } from "../redux/authenticateSlice";
 
 import { auth, googleProvider, db } from "../config/firebase";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
 
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -24,8 +30,10 @@ import {
   Alert,
 } from "@mui/material";
 
+import GoogleIcon from "@mui/icons-material/Google";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { RootState } from "../redux/store";
 
 const LoginSchema = z.object({
   email: z.email("Invalid email"),
@@ -42,6 +50,9 @@ function Login() {
   const dispatch = useDispatch();
   const [showPassword, setShowPassword] = useState(false);
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const currentUser = useSelector(
+    (state: RootState) => state.authenticator.currentUser
+  );
 
   const {
     control,
@@ -90,7 +101,10 @@ function Login() {
       console.log("Fetching Firestore profile for UID:", user.uid);
       const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
+
       console.log("Firestore snapshot:", snap);
+
+      // const resp = await updateDoc(collection(db, "users").where, {});
 
       if (!snap.exists()) {
         setError("email", {
@@ -101,6 +115,11 @@ function Login() {
       }
 
       const userData = snap.data();
+      // const db = getFirestore();
+      const docRef = doc(db, "users", user.uid);
+      await updateDoc(docRef, { isOnline: true });
+      console.log("data updated");
+
       console.log("User data from Firestore:", userData);
 
       dispatch(
@@ -144,8 +163,13 @@ function Login() {
           username: user.displayName || "User",
           photoURL: user.photoURL || DEFAULT_AVATAR,
           createdAt: serverTimestamp(),
+          isOnline: true,
         });
       }
+
+      const docRef = doc(db, "users", user.uid);
+      await updateDoc(docRef, { isOnline: true });
+      console.log("data updated");
 
       const userData = snap.exists()
         ? snap.data()
@@ -174,9 +198,16 @@ function Login() {
 
   return (
     <>
-      <Card variant="outlined" sx={{ p: 4, minWidth: 350 }}>
+      <Card variant="outlined" sx={{ p: 4, minWidth: 350, minHeight: 500 }}>
+        <div className="sidebar-top">
+          <img
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQbTyi3afQGtFkxup4GYKuYWVkcbgxJXUOnUw&s"
+            alt="Messenger"
+            className="messenger-logo"
+          />
+        </div>
         <Typography variant="h5" textAlign="center" mb={2}>
-          Login
+          Welcome to Messenger
         </Typography>
 
         <Box
@@ -184,7 +215,7 @@ function Login() {
           onSubmit={handleSubmit(handleLogin)}
           sx={{ display: "flex", flexDirection: "column", gap: 2 }}
         >
-          <Controller
+          {/* <Controller
             name="email"
             control={control}
             render={({ field }) => (
@@ -195,9 +226,47 @@ function Login() {
                 helperText={errors.email?.message}
               />
             )}
+          /> */}
+          <Controller
+            name="email"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                maxRows={1}
+                variant="standard"
+                label="Email"
+                error={!!errors.email}
+                helperText={errors.email?.message}
+              />
+            )}
           />
 
           <Controller
+            name="password"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                maxRows={1}
+                variant="standard"
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                error={!!errors.password}
+                helperText={errors.password?.message}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword((s) => !s)}>
+                        {showPassword ? <Visibility /> : <VisibilityOff />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            )}
+          />
+          {/* <Controller
             name="password"
             control={control}
             render={({ field }) => (
@@ -218,20 +287,29 @@ function Login() {
                 }}
               />
             )}
-          />
+          /> */}
 
-          <Button type="submit" variant="contained" fullWidth>
-            Login
+          <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>
+            Continue
           </Button>
-
-          <Button onClick={signInWithGoogle} variant="outlined" fullWidth>
-            Sign in with Google
-          </Button>
-
           <Typography align="center">
-            New user?{" "}
             <Link component={RouterLink} to="/register">
-              Register
+              Forgot Password?
+            </Link>
+          </Typography>
+
+          <Button
+            onClick={signInWithGoogle}
+            variant="outlined"
+            fullWidth
+            sx={{ mt: 2 }}
+          >
+            <GoogleIcon sx={{ mr: 2 }} /> Sign in with Google
+          </Button>
+
+          <Typography align="center" sx={{ mt: 20 }}>
+            <Link component={RouterLink} to="/register">
+              I donot have a messenger account?
             </Link>
           </Typography>
         </Box>

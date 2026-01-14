@@ -11,6 +11,8 @@ interface UserData {
   email: string;
   username?: string;
   photoURL?: string;
+  uid: string;
+  createdAt: string;
 }
 
 function Dashboard() {
@@ -34,7 +36,7 @@ function Dashboard() {
     };
 
     fetchUsers();
-  }, [currentUser]);
+  }, [currentUser, users]);
 
   return (
     <div className="dashboard-container">

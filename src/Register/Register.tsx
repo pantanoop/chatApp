@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { addCurrentUser } from "../redux/authenticateSlice";
+import { useSelector } from "react-redux";
 
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { auth, db } from "../config/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+
 import {
   doc,
   setDoc,
@@ -34,6 +36,7 @@ import {
 
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { RootState } from "../redux/store";
 
 const DEFAULT_AVATAR =
   "https://ui-avatars.com/api/?background=random&color=fff&name=";
@@ -44,7 +47,7 @@ const RegistrationSchema = z
       .string()
       .min(3, "Username must be at least 3 characters")
       .regex(/^\S+$/, "Username cannot contain spaces"),
-    email: z.string().email("Must be a valid email"),
+    email: z.email("Must be a valid email"),
     password: z
       .string()
       .min(6, "Password must be at least 6 characters")
@@ -65,6 +68,9 @@ function Register() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const currentUser = useSelector(
+    (state: RootState) => state.authenticator.currentUser
+  );
 
   const {
     control,
@@ -109,14 +115,16 @@ function Register() {
         photoURL: `${DEFAULT_AVATAR}${data.username}`,
         provider: "password",
         createdAt: serverTimestamp(),
+        isOnline: true,
       });
 
       dispatch(
         addCurrentUser({
           uid: user.uid,
-          email: data.email,
+          email: user.email,
           username: data.username,
           photoURL: `${DEFAULT_AVATAR}${data.username}`,
+          isOnline: true,
         })
       );
 
@@ -140,8 +148,15 @@ function Register() {
   return (
     <>
       <Card variant="outlined" sx={{ p: 4, minWidth: 350 }}>
-        <Typography variant="h5" textAlign="center" mb={2}>
-          Register
+        <div className="sidebar-top">
+          <img
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQbTyi3afQGtFkxup4GYKuYWVkcbgxJXUOnUw&s"
+            alt="Messenger"
+            className="messenger-logo"
+          />
+        </div>
+        <Typography variant="h5" textAlign="center" mb={5}>
+          Connect With your favorite people
         </Typography>
 
         <Box

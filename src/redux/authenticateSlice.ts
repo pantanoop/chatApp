@@ -2,9 +2,10 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export type User = {
   uid: string;
-  email: string;
-  username: string;
-  photoURL: string;
+  email: string | null;
+  username: string|null;
+  photoURL?: string;
+  isOnline?:boolean;
 };
 
 export type AuthState = {

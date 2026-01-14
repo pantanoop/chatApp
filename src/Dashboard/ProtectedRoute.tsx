@@ -1,8 +1,7 @@
-// ProtectedRoute.tsx
 import React from "react";
 import { useSelector } from "react-redux";
 import { Navigate } from "react-router-dom";
-import { RootState } from "../redux/store"; // adjust the path to your store
+import { RootState } from "../redux/store";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,7 +13,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   );
 
   if (!currentUser) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

@@ -11,6 +11,10 @@ import StoreIcon from "@mui/icons-material/Store";
 import RequestPageIcon from "@mui/icons-material/RequestPage";
 import ArchiveIcon from "@mui/icons-material/Archive";
 import LogoutIcon from "@mui/icons-material/Logout";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../../config/firebase";
+import { useSelector } from "react-redux";
+import { RootState } from "../../redux/store";
 
 interface SidebarProps {
   currentUserPhoto?: string;
@@ -20,10 +24,18 @@ const Sidebar = ({ currentUserPhoto }: SidebarProps) => {
   const navigate = useNavigate();
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const currentUser = useSelector(
+    (state: RootState) => state.authenticator.currentUser
+  );
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      const res = await signOut(auth);
+      if (currentUser) {
+        const docRef = doc(db, "users", currentUser.uid);
+        await updateDoc(docRef, { isOnline: false });
+      }
+      console.log("data updated");
       setOpenSnackbar(true);
       setTimeout(() => navigate("/"), 1200);
     } catch (err) {
