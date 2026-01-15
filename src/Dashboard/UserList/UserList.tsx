@@ -1,10 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Avatar, InputAdornment, TextField } from "@mui/material";
 import MessageOutlinedIcon from "@mui/icons-material/MessageOutlined";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
 import "./UserList.css";
-import { spawn } from "child_process";
 
 interface UserData {
   email: string;
@@ -22,12 +21,36 @@ interface UsersPanelProps {
   setSelectedUser: (user: UserData) => void;
 }
 
+const PAGE_SIZE = 20;
+
 const UserList = ({
   users,
   selectedUser,
   setSelectedUser,
 }: UsersPanelProps) => {
-  console.log("users from user list users", users);
+  const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  const filteredUsers = users.filter((user) => {
+    const value = (user.username || user.email).toLowerCase();
+    return value.includes(search.toLowerCase());
+  });
+
+  const handleScroll = () => {
+    if (!listRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+
+    if (scrollTop + clientHeight >= scrollHeight - 50) {
+      setVisibleCount((prev) => prev + PAGE_SIZE);
+    }
+  };
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search]);
 
   return (
     <div className="users-panel">
@@ -38,11 +61,14 @@ const UserList = ({
           <AddBoxOutlinedIcon />
         </div>
       </div>
+
       <TextField
         placeholder="Search Messenger..."
         size="small"
         fullWidth
         sx={{ mb: 3 }}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
@@ -52,21 +78,31 @@ const UserList = ({
         }}
       />
 
-      {users.map((user, idx) => (
-        <div
-          key={user.email || idx}
-          className={`user-card ${
-            selectedUser?.email === user.email ? "selected" : ""
-          }`}
-          onClick={() => setSelectedUser(user)}
-        >
-          <Avatar src={user.photoURL} />
-          <div className="user-info">
-            <span className="username">{user.username || user.email}</span>
-            {user.isOnline ? <span>online</span> : <span>Offline</span>}
+      <div className="user-list" ref={listRef} onScroll={handleScroll}>
+        {filteredUsers.slice(0, visibleCount).map((user) => (
+          <div
+            key={user.uid}
+            className={`user-card ${
+              selectedUser?.uid === user.uid ? "selected" : ""
+            }`}
+            onClick={() => setSelectedUser(user)}
+          >
+            <Avatar src={user.photoURL} />
+            <div className="user-info">
+              <span className="username">{user.username || user.email}</span>
+              <span>{user.isOnline ? "online" : "offline"}</span>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+
+        {visibleCount < filteredUsers.length && (
+          <p className="loading">Loading...</p>
+        )}
+
+        {filteredUsers.length === 0 && (
+          <p className="loading">No users found</p>
+        )}
+      </div>
     </div>
   );
 };

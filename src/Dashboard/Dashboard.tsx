@@ -40,7 +40,7 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      <Sidebar currentUserPhoto={currentUser?.photoURL} />
+      <Sidebar />
 
       <UserList
         users={users}

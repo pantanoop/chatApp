@@ -3,9 +3,10 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 export type User = {
   uid: string;
   email: string | null;
-  username: string|null;
+  username: string | null;
   photoURL?: string;
-  isOnline?:boolean;
+  isOnline?: boolean;
+  bio?: string;
 };
 
 export type AuthState = {

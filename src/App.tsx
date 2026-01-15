@@ -6,6 +6,7 @@ import Login from "./Login/Login";
 import Register from "./Register/Register";
 import Dashboard from "./Dashboard/Dashboard";
 import ProtectedRoute from "./Dashboard/ProtectedRoute";
+import Profile from "./UserProfile/Profile";
 
 function App() {
   return (
@@ -61,6 +62,21 @@ function App() {
             >
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            </Box>
+          }
+        />
+        <Route
+          path="/profile/edit"
+          element={
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              minHeight="100vh"
+            >
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             </Box>
           }

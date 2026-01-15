@@ -4,7 +4,8 @@
   background-color: #e9e7e7;
   border-right: 1px solid #ece0e0;
   padding: 10px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .users-panel .MuiInputBase-root {
@@ -32,7 +33,7 @@
 }
 
 .user-card.selected {
-  background-color:#1976d2;
+  background-color: #1976d2;
   color: white;
 }
 
@@ -69,7 +70,7 @@
   justify-content: space-between;
   align-items: center;
   margin-top: 20px;
-  margin-bottom: 30px;
+  margin-bottom: 15px;
 }
 
 .users-panel .top-header .chats-label {
@@ -91,4 +92,17 @@
 
 .users-panel .top-header .icon-group svg:hover {
   color: #1976d2;
+}
+
+.user-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.loading {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  margin: 10px 0;
 }
