@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import { Avatar, InputAdornment, TextField } from "@mui/material";
 import MessageOutlinedIcon from "@mui/icons-material/MessageOutlined";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
@@ -21,39 +21,22 @@ interface UsersPanelProps {
   setSelectedUser: (user: UserData) => void;
 }
 
-const PAGE_SIZE = 20;
-
 const UserList = ({
   users,
   selectedUser,
   setSelectedUser,
 }: UsersPanelProps) => {
   const [search, setSearch] = useState("");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const listRef = useRef<HTMLDivElement | null>(null);
 
   const filteredUsers = users.filter((user) => {
     const value = (user.username || user.email).toLowerCase();
     return value.includes(search.toLowerCase());
   });
 
-  const handleScroll = () => {
-    if (!listRef.current) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-
-    if (scrollTop + clientHeight >= scrollHeight - 50) {
-      setVisibleCount((prev) => prev + PAGE_SIZE);
-    }
-  };
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [search]);
-
   return (
     <div className="users-panel">
+     
       <div className="top-header">
         <div className="chats-label">Chats</div>
         <div className="icon-group">
@@ -62,6 +45,7 @@ const UserList = ({
         </div>
       </div>
 
+      
       <TextField
         placeholder="Search Messenger..."
         size="small"
@@ -78,8 +62,8 @@ const UserList = ({
         }}
       />
 
-      <div className="user-list" ref={listRef} onScroll={handleScroll}>
-        {filteredUsers.slice(0, visibleCount).map((user) => (
+      <div className="user-list">
+        {filteredUsers.map((user) => (
           <div
             key={user.uid}
             className={`user-card ${
@@ -90,15 +74,14 @@ const UserList = ({
             <Avatar src={user.photoURL} />
             <div className="user-info">
               <span className="username">{user.username || user.email}</span>
-              <span>{user.isOnline ? "online" : "offline"}</span>
+              <span className="status">
+                {user.isOnline ? "online" : "offline"}
+              </span>
             </div>
           </div>
         ))}
 
-        {visibleCount < filteredUsers.length && (
-          <p className="loading">Loading...</p>
-        )}
-
+       
         {filteredUsers.length === 0 && (
           <p className="loading">No users found</p>
         )}
